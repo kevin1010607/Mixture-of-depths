@@ -16,11 +16,12 @@ class TokenRouter(nn.Module):
     def __init__(self, embed_dim):
         super().__init__()
         self.weight_predictor = nn.Linear(embed_dim, 1)
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         original_type = x.dtype
         self.weight_predictor.to(torch.float32)
-        weights = self.weight_predictor(x.to(self.weight_predictor.weight.dtype)).squeeze(
+        weights = self.sigmoid(self.weight_predictor(x.to(self.weight_predictor.weight.dtype))).squeeze(
             -1
         )  # [batch_size, seq_len]
         return weights.to(original_type)
@@ -51,6 +52,7 @@ class MoD(nn.Module):
         if self.router.training:
             self.training_step += 1 if self.training_step < 1000 else 999
             self.capacity = 0.125 + ((1 - 0.125) * (1. / self.training_step))
+            self.capacity = 0.125
 
         if torch.isnan(x).any():
             warnings.warn(
@@ -67,7 +69,7 @@ class MoD(nn.Module):
         for i in range(b):
             current_selected_mask = selected_mask[i]
             selected_tokens = x[i][current_selected_mask]
-            selected_position_ids = position_ids[i][current_selected_mask].unsqueeze(0)
+            selected_position_ids = position_ids[0][current_selected_mask].unsqueeze(0)
             if attention_mask is not None:
                 if attention_mask.dim() == 2: #this is the fa2 case
                     current_causal_mask = attention_mask[:, current_selected_mask]
@@ -110,8 +112,7 @@ class MoD(nn.Module):
                     )[0] * weights[i][selected_mask[i]].unsqueeze(-1)
 
 
-
-        output = processed_tokens + (x * (~selected_mask).unsqueeze(-1).to(x.dtype))
+        output = processed_tokens + x
         return (output, cache) if cache is not None else (output,)
 
 
