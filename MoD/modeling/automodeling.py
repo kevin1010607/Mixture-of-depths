@@ -38,7 +38,10 @@ class AutoMoDModelForCausalLM:
 
     @classmethod
     def from_pretrained(cls, *args, **kwargs):
-        model_class_name = cls.load_model_conf(args[0])
+        if "mod" in args[0]:
+            model_class_name = "LlamaMoDForCausalLM"
+        else:
+            model_class_name = cls.load_model_conf(args[0])
         # Uses Mapping to get the model class name
         if not model_class_name:
             raise ValueError(
